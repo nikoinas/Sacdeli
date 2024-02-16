@@ -73,7 +73,9 @@ class Renderer: NSObject {
             }
             
             Renderer.device = device
+        print("ვნახოთ 0", device)
             self.commandQueue = commandQueue
+        print("ვნახოთ 0", commandQueue)
             
             let bundle = Bundle(identifier: "com.ybvr.YBVRSDK") ?? Bundle.main
         print("ვნახოთ 1", bundle === Bundle(identifier: "com.ybvr.YBVRSDK"))
