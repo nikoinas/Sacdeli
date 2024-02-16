@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "yams",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nikoinas/Yams.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "726adbc325bbf5aa1a726707443a5e1d06ca1384"
+      }
+    }
+  ],
+  "version" : 2
+}
