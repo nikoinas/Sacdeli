@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "Sacdeli",
+    name: "YBVRSDK",
     platforms: [
         .iOS("16.0"),
     ],
