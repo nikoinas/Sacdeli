@@ -33,7 +33,7 @@ class AP3: Geometry {
 
     var vertexCount: Int
     var indexCount: Int
-    let color: Color = Color(r: 0.0, g: 0.5, b: 0.0, a: 1.0)
+    let color: ColorUK = ColorUK(r: 0.0, g: 0.5, b: 0.0, a: 1.0)
 
 
     var transform = Transform()

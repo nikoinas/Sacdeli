@@ -135,7 +135,7 @@ public struct Camera: Codable {
      Every video needs a camera to be played, but non-signaling videos won't have one.
      This emptyCamera just helps us reproduce a video witout a signaling file.
      */
-    static var emptyCamera: Camera {
+    public static var emptyCamera: Camera {
         return Camera(name: " ",
                       id: 0,
                       geometries: "",
@@ -149,7 +149,7 @@ public struct Camera: Codable {
      Every video needs a camera to be played, but non-signaling videos won't have one.
      This emptyCamera just helps us reproduce a video witout a signaling file and force to have geometry "1"
      */
-    static var nsEquirectangularMonoCamera: Camera {
+    public static var nsEquirectangularMonoCamera: Camera {
         return Camera(name: " ",
                       id: 0,
                       geometries: "1", // Sphere

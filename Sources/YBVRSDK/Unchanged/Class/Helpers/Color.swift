@@ -14,7 +14,7 @@ import UIKit
 /**
  Color object used to define the colors of the geometries that need a vector of 4 elements.
  */
-struct Color {
+struct ColorUK {
     /// Red value
     let r: Float
 

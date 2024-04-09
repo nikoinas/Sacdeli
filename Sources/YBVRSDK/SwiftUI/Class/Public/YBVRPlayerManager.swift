@@ -7,30 +7,33 @@
 
 import SwiftUI
 import AVFoundation
+import Combine
 
 /**
  YBVRPlayer is an object that provides the interface to display videos inside custom geometries.
  */
 open class YBVRPlayerManager {
+    private var cancellables = Set<AnyCancellable>()
 
     private let videoConfig: VideoConfig
     private var videoPlayer: VideoPlayerProtocol?
-    
     //For networking
     private let networkingManager: Networking = NetworkingManager()
-
     //For Geometry Video Player
-    private let geometryVideoViewModel: GeometryVideoViewModel
-    private let geometryVideoView: GeometryVideoView
+    public let geometryVideoViewModel: GeometryVideoViewModel
     
+    //private let geometryVideoView: GeometryVideoView
+    
+    // Signaling
     private var signaling: Signaling?
     private var signalingV3: SignalingV3?
     private var isSignalingV3: Bool?
     private var videoUrl: URL?
-    
-    // შესაცვლელია
+    // MiniVideoManager
     //private var miniVideosManager: MiniVideosManager?
     
+    
+    // Analytics config
     private var analyticsConfig: AnalyticsConfig?
     private var tracker: Tracker?
     private var signalingVersion: SignalingVersion?
@@ -42,81 +45,57 @@ open class YBVRPlayerManager {
      List of available cameras for current video
      */
     public var cameras: [YBVRCamera] {
-        if isSignalingV3 ?? false {
-            guard let version = signalingVersion else { return [YBVRCamera(camera: Camera.emptyCamera)] }
-            switch version {
-            case .v2:
-                var cams: [YBVRCamera] = []
-                if let cameras = signalingV3?.cameras {
-                    for camera in cameras {
-                        cams.append(YBVRCamera(camera: camera))
-                    }
-                } else {
-                    cams = [YBVRCamera(camera: Camera.emptyCamera)]
+        guard let version = signalingVersion else { return [YBVRCamera(camera: Camera.emptyCamera)] }
+        switch version {
+        case .v2:
+            var cams: [YBVRCamera] = []
+            if let cameras = signaling?.cameras {
+                for camera in cameras {
+                    cams.append(YBVRCamera(camera: camera))
                 }
-                return cams
-            case .nsEquirectangularMono:
-                return [YBVRCamera(camera: Camera.nsEquirectangularMonoCamera)]
-            case .nsFlatMono:
-                return [YBVRCamera(camera: Camera.nsFlatMonoCamera)]
+            } else {
+                cams = [YBVRCamera(camera: Camera.emptyCamera)]
             }
-        } else {
-            guard let version = signalingVersion else { return [YBVRCamera(camera: Camera.emptyCamera)] }
-            switch version {
-            case .v2:
-                var cams: [YBVRCamera] = []
-                if let cameras = signaling?.cameras {
-                    for camera in cameras {
-                        cams.append(YBVRCamera(camera: camera))
-                    }
-                } else {
-                    cams = [YBVRCamera(camera: Camera.emptyCamera)]
-                }
-                return cams
-            case .nsEquirectangularMono:
-                return [YBVRCamera(camera: Camera.nsEquirectangularMonoCamera)]
-            case .nsFlatMono:
-                return [YBVRCamera(camera: Camera.nsFlatMonoCamera)]
-            }
+            return cams
+        case .nsEquirectangularMono:
+            return [YBVRCamera(camera: Camera.nsEquirectangularMonoCamera)]
+        case .nsFlatMono:
+            return [YBVRCamera(camera: Camera.nsFlatMonoCamera)]
         }
     }
-
+        
     /**
      List of cameras belonging to a geometry of type `11` (Control Room)
      */
-    public var controlRoomCameras: [YBVRCamera] = []
+    private var controlRoomCameras: [YBVRCamera] = []
+
+    /**
+     List of views each one rendering one of the available Control Room cameras.
+     */
+//    public var controlRoomViews: [ControlRoomCameraView] {
+//        return miniVideosManager?.views ?? []
+//    }
+    public var camereSelectorView: CameraSelectorView?
     
     /**
      List of available ViewPoint for current video
      */
     public var viewPoints: [ViewPoint] {
-        if isSignalingV3 ?? false {
-            return signalingV3?.camerasPresentation?.viewPoints ?? []
-        }else{
-            return signaling?.camerasPresentation?.viewPoints ?? []
-        }
+        signaling?.camerasPresentation?.viewPoints ?? []
     }
 
     /**
      camerasPresentation isenabled
      */
     public var camerasPresentationEnabled: Bool {
-        if isSignalingV3 ?? false {
-            return signalingV3?.camerasPresentation?.isEnabled ?? true
-        }else{
-            return signaling?.camerasPresentation?.isEnabled ?? true
-        }
+        signaling?.camerasPresentation?.isEnabled ?? true
     }
     
     /**
      Object that includes some UI customizations as mapPaster, controlRoomPoster, etc...
      */
     public var signalingUIData: SignalingUIData {
-        if isSignalingV3 ?? false {
-            return signalingV3?.uiData ?? SignalingUIData.empty
-        }else{
-            return signaling?.uiData ?? SignalingUIData.empty
-        }
+        signaling?.uiData ?? SignalingUIData.empty
     }
 
     /**
@@ -134,12 +113,11 @@ open class YBVRPlayerManager {
     }
 
     /**
-     Current video duration
+     Current video duration and position
      */
-    public var videoDuration: Double {
-        return videoPlayer?.duration ?? 0
-    }
-
+    @Published public var videoDuration: Double = 0
+    @Published public var videoPosition: Double = 0
+    
     /**
      Current video pitch value
      */
@@ -160,18 +138,18 @@ open class YBVRPlayerManager {
     public var videoStatus: VideoStatus {
         return videoPlayer?.currentVideoStatus ?? .paused
     }
-
-//    /**
-//     ესენი უნდა სხვანაირად წარმობადგინოთ ახალ ui-ში
-//     List of views each one rendering one of the available Control Room cameras.
-//     */
-//    public var controlRoomViews: [ControlRoomCameraView] {
-//        return miniVideosManager?.views ?? []
+    
+//    private func creataCameraViews(videoPlayer: VideoPlayerProtocol, cameras: [YBVRCamera]) {
+//        for (tag, cam) in cameras.enumerated() {
+//            let view = ControlRoomCameraView(camera: cam)
+//            view.vm.videoPlayer = videoPlayer
+//            controlRoomViews.append(view)
+//        }
 //    }
-
-    public var ybvrPlayerView: some View {
-        return geometryVideoView
-    }
+    
+//    public var ybvrPlayerView: some View {
+//        return geometryVideoView
+//    }
 
     /**
      Wether the video is stalled due to network issues
@@ -214,12 +192,11 @@ open class YBVRPlayerManager {
      If enabled, non-flat geometries will use gyro data to move around the geometry.
      */
     public var isGyroEnabled: Bool {
-        // შესაცვლელია
-        set {
-            geometryVideoViewModel.gyroscopeEnabled = newValue
-        }
         get {
             geometryVideoViewModel.gyroscopeEnabled
+        }
+        set {
+            geometryVideoViewModel.gyroscopeEnabled = newValue
         }
     }
 
@@ -228,10 +205,14 @@ open class YBVRPlayerManager {
      - Parameter videoConfig: Configuration for the Player, you can use `VideoConfig.defaultConfig`
      */
     public init(videoConfig: VideoConfig, appName: String) {
+        //print("\(Self.self).\(#function)")
+        
         self.videoConfig = videoConfig
         self.appName = appName
+        
         self.geometryVideoViewModel = GeometryVideoViewModel(camera: nil, videoConfig: videoConfig, title: appName)
-        self.geometryVideoView = GeometryVideoView(vm: geometryVideoViewModel)
+        
+        //self.geometryVideoView = GeometryVideoView(vm: self.geometryVideoViewModel)
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
         // Make sure the phone won't go to sleep
         UIApplication.shared.isIdleTimerDisabled = true
@@ -243,16 +224,37 @@ open class YBVRPlayerManager {
      */
     deinit {
         // Allow the phone to go to sleep again
+        //print("\(Self.self).\(#function)")
+        
         UIApplication.shared.isIdleTimerDisabled = false
         geometryVideoViewModel.stop()
         videoPlayer?.stop()
-        
-        //miniVideosManager?.stop()
-        
+        camereSelectorView?.stop()
         tracker?.stop()
         tracker = nil
+        cancellables.forEach { $0.cancel() }
+        
     }
+    
+    
 
+    // აქ უნდა გავასწორო
+    private func addSubscribers() {
+        guard videoPlayer != nil else { return }
+            let player = videoPlayer as! ApplePlayer
+        player.$duration
+            .sink { [weak self] value in
+                self?.videoDuration = value
+            }
+            .store(in: &cancellables)
+        
+        player.$newPosition
+            .sink { [weak self] value in
+                self?.videoPosition = value
+            }
+            .store(in: &cancellables)
+    }
+    
     /**
      Open a video
      - Parameter url: URL of the video to open
@@ -273,7 +275,7 @@ open class YBVRPlayerManager {
         initVideoPlayer(url: url)
         
         guard signalingVersion.hasSignalingFile else {
-            geometryVideoViewModel.setupContext(with: signalingVersion, isPassthrough: true, geometryIDs: [], numberOfRowsForCRv2: 0)
+            await geometryVideoViewModel.setupContext(with: signalingVersion, isPassthrough: true, geometryIDs: [], numberOfRowsForCRv2: 0)
             await self.startStream()
             do {
                 try self.checkAnalytics()
@@ -285,45 +287,13 @@ open class YBVRPlayerManager {
         }
         let signalingUrl = url.deletingPathExtension().appendingPathExtension("json")
         
-//        // This is for SignalingV3
-//        do {
-//            let signalingV3 = try await getSignalingV3(url: signalingUrl)
-//            
-//            var geometries = signalingV3.allGeometries
-//            if url.urlType == .rtmpMulticam {
-//                geometries = signalingV3.cameras.first?.geometriesArray ?? []
-//            }
-//            self.geometryVideoViewModel.setupContext(with: signalingVersion,
-//                                                     isPassthrough: url.urlType != .http,
-//                                                     geometryIDs: geometries,
-//                                                     numberOfRowsForCRv2: signalingV3.numberOfRowsForCRv2)
-//            self.signalingV3 = signalingV3
-//            var cams: [YBVRCamera] = []
-//            for camera in signalingV3.controlRoomCameras {
-//                cams.append(YBVRCamera(camera: camera))
-//            }
-//           
-//            self.controlRoomCameras = cams
-//            self.isSignalingV3 = true
-//            self.startStream()
-//            
-//            do {
-//                try self.checkAnalytics()
-//            } catch {
-//                print("[YBVR] Error initializing analytics")
-//            }
-//            self.enableAnalytics()
-//            
-//            onCompletion?(.success(()))
-//
-//        } catch {
         let signaling = try await getSignaling(url: signalingUrl)
         
         var geometries = signaling.allGeometries
         if url.urlType == .rtmpMulticam {
             geometries = signaling.cameras?.first?.geometriesArray ?? []
         }
-        self.geometryVideoViewModel.setupContext(with: signalingVersion,
+        await self.geometryVideoViewModel.setupContext(with: signalingVersion,
                                                  isPassthrough: url.urlType != .http,
                                                  geometryIDs: geometries,
                                                  numberOfRowsForCRv2: signaling.numberOfRowsForCRv2)
@@ -344,8 +314,6 @@ open class YBVRPlayerManager {
         } catch {
             print("[YBVR] Error initializing analytics")
         }
-        //self.enableAnalytics()
-        //for SignalingV3 }
     }
     
     public func setSubtitles(url: URL) async {
@@ -358,14 +326,14 @@ open class YBVRPlayerManager {
     }
 
     private func initVideoPlayer(url: URL) {
-        print("აქამდე მოდის?", url)
         switch url.urlType {
         case .http:
             videoPlayer = ApplePlayer(url: url, framesPerSecond: 30, videoConfig: videoConfig)
         default:
             break
         }
-        videoPlayer?.delegate = delegate
+        //videoPlayer?.delegate = delegate
+        addSubscribers()
         videoPlayer?.shouldLogErrors = shouldLogErrors
         geometryVideoViewModel.videoPlayer = videoPlayer
         geometryVideoViewModel.onNewFrame = { [weak self] in
@@ -403,37 +371,35 @@ open class YBVRPlayerManager {
      */
     public func stop() {
         geometryVideoViewModel.stop()
-        
         videoPlayer?.stop()
-        //miniVideosManager?.stop()
+        camereSelectorView?.stop()
         tracker?.stop()
     }
 
-//    /**
-//     Play control room camera views.
-//     This method will start the videos in the views returned in `controlRoomCameras`
-//     */
-//    public func playControlRoom() {
-//        miniVideosManager?.play()
-//    }
+    /**
+     Play control room camera views.
+     This method will start the videos in the views returned in `controlRoomCameras`
+     */
+    public func playControlRoom() {
+        camereSelectorView?.play()
+    }
 
-//    /**
-//     Pause control room camera views.
-//     This method will pause the videos in the views returned in `controlRoomCameras`
-//
-//     This is useful if you want to show/hide the control room cameras. If you hide them,
-//     call this method so they don't continue rendering offscreen.
-//     */
-//    public func pauseControlRoom() {
-//        miniVideosManager?.pause()
-//    }
+    /**
+     Pause control room camera views.
+     This method will pause the videos in the views returned in `controlRoomCameras`
+
+     This is useful if you want to show/hide the control room cameras. If you hide them,
+     call this method so they don't continue rendering offscreen.
+     */
+    public func pauseControlRoom() {
+        camereSelectorView?.pause()
+    }
 
     /**
      Reset the camera position.
      This means `pitch` and `yaw` will be set to 0. (roll is always 0)
      */
     public func recenterCameraPosition() {
-        // შესაცვლელია
         geometryVideoViewModel.recenterCameraPosition()
     }
 
@@ -441,8 +407,7 @@ open class YBVRPlayerManager {
      Stop any camera movement in the video due to finger touches
      */
     public func stopCameraMovement() {
-        // შესაცვლელია
-        //geometryVideoManager.stopDeceleration()
+        geometryVideoViewModel.stopDeceleration()
     }
 
     /**
@@ -471,14 +436,8 @@ open class YBVRPlayerManager {
         geometryVideoViewModel.updateCamera(camera: camera)
         let index = 0 //camera.viewportOffsetNumber
 
-        if isSignalingV3 ?? false {
-            print("[YBVR] CP: Selecting camera = \(camera.id) - \(camera.geometriesArray[0] )")
-            videoPlayer?.selectCam(camera: camera, viewPort: nil)
-        }else{
-            videoPlayer?.selectCam(camera: camera, viewPort: signaling?.viewports?[index])
-        }
-
-        //camera.isControlRoom ? miniVideosManager?.play() : miniVideosManager?.pause()
+        videoPlayer?.selectCam(camera: camera, viewPort: signaling?.viewports?[index])
+        camera.isControlRoom ? camereSelectorView?.play() : camereSelectorView?.pause()
     }
 
     /**
@@ -486,28 +445,15 @@ open class YBVRPlayerManager {
      - Parameter viewPoint: ViewPoint from which you want to obtain the camera
      */
     public func camera(for viewPoint: ViewPoint) -> YBVRCamera? {
-        if isSignalingV3 ?? false {
-            var cams: [YBVRCamera] = []
-            if let cameras = signalingV3?.cameras {
-                for camera in cameras {
-                    cams.append(YBVRCamera(camera: camera))
-                }
-            } else {
-                cams = []
+        var cams: [YBVRCamera] = []
+        if let cameras = signaling?.cameras {
+            for camera in cameras {
+                cams.append(YBVRCamera(camera: camera))
             }
-            return cams.first(where: { $0.id == viewPoint.camID })
         } else {
-            var cams: [YBVRCamera] = []
-            if let cameras = signaling?.cameras {
-                for camera in cameras {
-                    cams.append(YBVRCamera(camera: camera))
-                }
-            } else {
-                cams = []
-            }
-            return cams.first(where: { $0.id == viewPoint.camID })
+            cams = []
         }
-        
+        return cams.first(where: { $0.id == viewPoint.camID })
     }
 
     /**
@@ -531,9 +477,9 @@ open class YBVRPlayerManager {
             return self?.getCurrentViewState()
         }
         tracker?.start()
-        geometryVideoViewModel.onCameraChangeEvent = { [weak self] change in
+        geometryVideoViewModel.onCameraChangeEvent = { [weak self] change async in
             guard let url = self?.videoUrl else { return }
-            self?.tracker?.trackViewPortChange(change: change, videoUrl: url.absoluteString)
+            await self?.tracker?.trackViewPortChange(change: change, videoUrl: url.absoluteString)
         }
     }
 
@@ -552,8 +498,9 @@ open class YBVRPlayerManager {
     private func startStream() async {
         // TODO: Check for any HTTP Player
         if let player = videoPlayer {
-            // RTMP Playbacks won't have a ControlRoom, no need to have a MiniVideosManager
-            //miniVideosManager = MiniVideosManager(videoPlayer: player, controlRoomCameras: controlRoomCameras)
+            let camereSelectorVM = CameraSelectorViewModel(videoPlayer: player, controlRoomCameras: controlRoomCameras)
+            
+            camereSelectorView = await CameraSelectorView(vm: camereSelectorVM)
         }
         guard let videoUrl = videoUrl else { return }
         switch videoUrl.urlType {
@@ -574,12 +521,6 @@ open class YBVRPlayerManager {
     private func getSignaling(url: URL) async throws -> Signaling {
         return try await networkingManager.fetchData(for: Signaling.self, from: url, serializationFormat: .json)
     }
-//    /**
-//     Download signaling file V3
-//     */
-//    private func getSignalingV3(url: URL) async throws -> SignalingV3 {
-//        return try await networkingManager.fetchData(for: SignalingV3.self, from: url, serializationFormat: .json)
-//    }
 
     /**
      Download Subtitles SRT File
@@ -631,7 +572,6 @@ open class YBVRPlayerManager {
             let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
                 return
         }
-
         switch type {
         case .began:
             videoPlayer?.pause()

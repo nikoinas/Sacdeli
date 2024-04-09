@@ -5,8 +5,6 @@
 //  Created by Luis Miguel Alarcon on 13/6/22.
 //
 
-//import SwiftUI
-//import simd
 import MetalKit
 import CoreMotion
 
@@ -29,8 +27,9 @@ func float4x4Scale(_ matrix: float4x4, _ x: Float, _ y: Float, _ z: Float) -> fl
 
 extension float4x4 {
     
+    
     static func makeFrom(rotationMatrix a: CMRotationMatrix) -> float4x4 {
-        let orientation = UIApplication.shared.statusBarOrientation
+        let orientation = UIApplication.orientation
         switch orientation {
         case .landscapeLeft:
             return float4x4(
@@ -126,19 +125,22 @@ extension float4x4 {
   }
   
   // MARK: - Left handed projection matrix
-  init(projectionFov fov: Float, near: Float, far: Float, aspect: Float) {
-    let y = 1 / tan(fov * 0.5)
-    let x = y / aspect
-    let z = far / (far - near)
-    let X = SIMD4<Float>( x,  0,  0,  0)
-    let Y = SIMD4<Float>( 0,  y,  0,  0)
-    let Z = SIMD4<Float>( 0,  0,  z, 1)
-    let W = SIMD4<Float>( 0,  0,  z * -near,  0)
-    self.init()
-    columns = (X, Y, Z, W)
-  }
-
-  
+    init(projectionFov fov: Float, near: Float, far: Float, aspect: Float) {
+        let y = 1 / tan(fov * 0.5)
+        let x = y / aspect
+        //let z = far / (far - near)
+        let z = -(far + near) / (far - near)
+        let w = -far * near / (far - near)
+        let X = SIMD4<Float>( x,  0,  0,  0)
+        let Y = SIMD4<Float>( 0,  y,  0,  0)
+        //let Z = SIMD4<Float>( 0,  0,  z, 1)
+        let Z = SIMD4<Float>( 0,  0,  z, -1)
+        //let W = SIMD4<Float>( 0,  0,  z * -near,  0)
+        let W = SIMD4<Float>( 0,  0,  w,  0)
+        self.init()
+        columns = (X, Y, Z, W)
+    }
+    
   // left-handed LookAt
   init(eye: SIMD3<Float>, center: SIMD3<Float>, up: SIMD3<Float>) {
     let z = normalize(center - eye)

@@ -12,10 +12,9 @@ import CoreMedia
 import CoreMotion
 import Combine
 
-class GeometryVideoViewModel: ObservableObject {
+public class GeometryVideoViewModel: ObservableObject {
     
-    @Published var videoUpdated: Bool = false
-    @Published var metalView: MetalView!
+    @MainActor @Published var metalView: MetalView!
     @Published var title: String?
 
     private var gyroTimer: AnyCancellable?
@@ -29,7 +28,7 @@ class GeometryVideoViewModel: ObservableObject {
         static let minZoomScale: Double = 1
     }
 
-    var videoPlayer: VideoPlayerProtocol?
+    weak var videoPlayer: VideoPlayerProtocol?
     
     // For cameras
     private(set) var camera: YBVRCamera?
@@ -37,7 +36,7 @@ class GeometryVideoViewModel: ObservableObject {
     private(set) var viewport: Int = 0
     private(set) var newViewport: Int = 0
     
-    private var initialOrientation = UIApplication.shared.statusBarOrientation
+    private var initialOrientation = UIApplication.orientation
 
     // For rotation
     private var privateRotationX: Double = 0
@@ -75,7 +74,7 @@ class GeometryVideoViewModel: ObservableObject {
     private var cameraChangeTimestamp: Int64 = 0
     private var lastValidPixelBuffer: CVPixelBuffer?
     private var isInitiallyPortrait = false
-    var onCameraChangeEvent: ((ViewPortChange) -> Void)?
+    var onCameraChangeEvent: ((ViewPortChange) async -> Void)?
 
     // Gyro
     var gyroscopeEnabled = false {
@@ -91,6 +90,7 @@ class GeometryVideoViewModel: ObservableObject {
     //private var matrix: GLKMatrix4 = GLKMatrix4Identity
     
     private var matrix: matrix_float4x4 = matrix_identity_float4x4
+    //private var matrix: GLKMatrix4 = GLKMatrix4Identity
     
     /**
      Current yaw value in radians
@@ -137,7 +137,9 @@ class GeometryVideoViewModel: ObservableObject {
     }
 
     // Initializers and De-Initializer
-    init(camera: YBVRCamera?, videoConfig: VideoConfig, title: String? = nil) {
+    public init(camera: YBVRCamera?, videoConfig: VideoConfig, title: String? = nil) {
+        //print("\(Self.self).\(#function)")
+        
         self.camera = camera
         self.newCameraSelection = camera
         self.videoConfig = videoConfig
@@ -145,6 +147,8 @@ class GeometryVideoViewModel: ObservableObject {
     }
         
     deinit {
+        //print("\(Self.self).\(#function)")
+        
         stop()
     }
 
@@ -168,7 +172,8 @@ class GeometryVideoViewModel: ObservableObject {
         }
     }
     
-    func didReceiveVideoNotification() {
+    
+    func didReceiveVideoNotification() async {
         // Only activate Gyros if camera is not flat
         newCameraSelection?.isFlatCamera ?? true ? stopGyros() : startMotionUpdates()
 
@@ -179,7 +184,7 @@ class GeometryVideoViewModel: ObservableObject {
                                    endViewport: newCameraSelection.id,
                                    startTS: cameraChangeTimestamp,
                                    endTS: Date().epoch)
-        onCameraChangeEvent?(event)
+        await onCameraChangeEvent?(event)
         self.camera = newCameraSelection
         recenterCameraPosition()
     }
@@ -194,7 +199,7 @@ class GeometryVideoViewModel: ObservableObject {
         rotationX = 0
         rotationY = 0
         initialAttitude = nil
-        initialOrientation = UIApplication.shared.statusBarOrientation
+        initialOrientation = UIApplication.orientation
         scale = 1
         lastScale = 1
     }
@@ -215,7 +220,7 @@ class GeometryVideoViewModel: ObservableObject {
      This parameter is only used if `signaling` value is `v2`, if not it will be ignored.
      */
     func setupContext(with signaling: SignalingVersion, isPassthrough: Bool,
-                      geometryIDs: [String], numberOfRowsForCRv2: Int) {
+                      geometryIDs: [String], numberOfRowsForCRv2: Int) async {
         
         renderer = Renderer(videoConfig: videoConfig,
                             signalingVersion: signaling,
@@ -226,19 +231,18 @@ class GeometryVideoViewModel: ObservableObject {
         renderer.videoPlayer = videoPlayer
         
         //?????????????????????????????????????????
-        metalView = MetalView(renderer: renderer)
-        
-        panGesture = UIPanGestureRecognizer(target: self, action: #selector(pan))
-        panGesture.minimumNumberOfTouches = 1
-        metalView.mtkView.addGestureRecognizer(panGesture)
-
-        pinchGesture = UIPinchGestureRecognizer(target: self, action: #selector(pinch))
-        //pinchGesture.delegate = self
-        metalView.mtkView.addGestureRecognizer(pinchGesture)
+        await MainActor.run {
+            metalView = MetalView(renderer: renderer)
+            panGesture = UIPanGestureRecognizer(target: self, action: #selector(pan))
+            panGesture.minimumNumberOfTouches = 1
+            metalView.mtkView.addGestureRecognizer(panGesture)
+            pinchGesture = UIPinchGestureRecognizer(target: self, action: #selector(pinch))
+            //pinchGesture.delegate = self
+            metalView.mtkView.addGestureRecognizer(pinchGesture)
+        }
     }
     
-
-    func selectViewport() {
+    func selectViewport() async {
         guard let camera = camera else { return }
         let transformedPitch = (pitchDegrees + 90).truncatingRemainder(dividingBy: 360)
         let x = Int(round((16 - 1) * yawDegrees / 360));
@@ -256,7 +260,7 @@ class GeometryVideoViewModel: ObservableObject {
                                        endViewport: viewportGazed,
                                        startTS: cameraChangeTimestamp,
                                        endTS: Date().epoch)
-            onCameraChangeEvent?(event)
+            await onCameraChangeEvent?(event)
             viewport = viewportGazed
         }
     }
@@ -289,9 +293,10 @@ class GeometryVideoViewModel: ObservableObject {
             })
     }
     
+
     func motionUpdate() {
         if initialOrientation == .portrait || initialOrientation == .portraitUpsideDown {
-            initialOrientation = UIApplication.shared.statusBarOrientation
+            initialOrientation = UIApplication.orientation
         }
         var sensorMatrix = float4x4.identity
         
@@ -333,9 +338,8 @@ class GeometryVideoViewModel: ObservableObject {
         renderer?.update(from: matrix)
     }
 
-    
-    func newFrame() {
-        selectViewport()
+    func newFrame() async {
+        await selectViewport()
         onNewFrame?()
     }
         
@@ -375,16 +379,23 @@ extension GeometryVideoViewModel {
         default:
             break
         }
-
-        gesture.setTranslation(.zero, in: metalView.mtkView)
+        Task{
+            await MainActor.run { 
+                gesture.setTranslation(.zero, in: metalView.mtkView)
+            }
+        }
     }
 
     private func decelerate(with recognizer: UIPanGestureRecognizer) {
         stopDeceleration()
 
         decelerationLastTime = CACurrentMediaTime()
-        decelerationVelocity = recognizer.velocity(in: metalView.mtkView)
+        Task{
+            await MainActor.run {
+                decelerationVelocity = recognizer.velocity(in: metalView.mtkView)
+            }
 
+        }
         decelerationDisplayLink = CADisplayLink(target: self, selector: #selector(decelerationLoop))
         decelerationDisplayLink?.add(to: RunLoop.main, forMode: RunLoop.Mode.common)
     }

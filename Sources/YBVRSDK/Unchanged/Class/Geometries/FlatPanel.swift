@@ -16,7 +16,7 @@ class FlatPanelGeometry: Geometry {
 
     var vertexCount: Int = 4
     var indexCount: Int = 6
-    let color: Color = Color(r: 1.0, g: 1.0, b: 0.0, a: 1.0)
+    let color: ColorUK = ColorUK(r: 1.0, g: 1.0, b: 0.0, a: 1.0)
 
     var transform = Transform()
     var texture: MTLTexture? 

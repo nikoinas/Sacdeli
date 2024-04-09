@@ -7,15 +7,15 @@
 
 import SwiftUI
 
-struct GeometryVideoView: View {
+public struct GeometryVideoView: View {
     
-    @StateObject var vm : GeometryVideoViewModel
+    @ObservedObject var vm : GeometryVideoViewModel
         
-    init(vm: GeometryVideoViewModel) {
-        self._vm = StateObject(wrappedValue: vm)
+    public init(vm: GeometryVideoViewModel) {
+        self._vm = ObservedObject(wrappedValue: vm)
     }
     
-    var body: some View {
+    public var body: some View {
         ZStack {
             vm.metalView
             
@@ -25,12 +25,13 @@ struct GeometryVideoView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.bottom, 5)
                 
-                Label(
-                    title: { Text("Geometry Video View!") },
-                    icon: { Image(systemName: "video.bubble") }
-                )
-                .font(.system(size: 30))
-                .padding()
+//                Label(
+//                    title: { Text("Geometry Video View!") },
+//                    icon: { Image(systemName: "video.bubble") }
+//                )
+//                .font(.system(size: 30))
+//                .padding()
+                    Spacer()
 
             }
         }
@@ -38,12 +39,16 @@ struct GeometryVideoView: View {
             //
             //TODO: set this to call on every frame, maybe on renderer
             NotificationCenter.default.addObserver(forName: .newFrame, object: nil, queue: nil) { _ in
-                vm.newFrame()
+                Task{ 
+                    await vm.newFrame()
+                }
             }
             
             //
             NotificationCenter.default.addObserver(forName: .videoIsReady, object: nil, queue: nil) { _ in
-                vm.didReceiveVideoNotification()
+                Task{
+                    await vm.didReceiveVideoNotification()
+                }
             }
         }
     }

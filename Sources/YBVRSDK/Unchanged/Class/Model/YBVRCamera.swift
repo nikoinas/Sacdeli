@@ -29,7 +29,7 @@ public class YBVRCamera {
 
     let isV3: Bool
     
-    init(camera: Camera) {
+    public init(camera: Camera) {
         name = camera.name
         id = camera.id
         geometries = nil
@@ -60,7 +60,7 @@ public class YBVRCamera {
             if let bitrate = bitrate {
                 if(viewportMatrix?.viewports.first?.representations.count ?? 0 > 0){
                     var stream: String = ""
-                    var rep = viewportMatrix?.viewports.first?.representations
+                    //var rep = viewportMatrix?.viewports.first?.representations
 
                     stream = (baseUrl ?? "") + (viewportMatrix?.viewports.first?.representations.first(where: {
                         $0.bandwidth <= bitrate

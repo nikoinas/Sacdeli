@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import UIKit
+import SwiftUI
 
 /**
  Enum defining the frames for each control room mini camera

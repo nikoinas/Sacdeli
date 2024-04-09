@@ -49,3 +49,25 @@ enum APIError: Error {
 public enum SerializationFormat: String {
     case json, yaml
 }
+
+
+public struct IPInfo {
+    public let clientIP: String
+    public let clientCountry: String
+}
+
+struct YBVRError: Codable {
+    let message: String
+    let errors: [String: [String]]
+}
+
+// Possible errors related to data processing into image.
+public enum ImageError: Error {
+    // An invalid image data error
+    case invalidImageData
+    public var message: String {
+        switch self {
+        case .invalidImageData: return "Invalid image data error from requesting API resource"
+        }
+    }
+}

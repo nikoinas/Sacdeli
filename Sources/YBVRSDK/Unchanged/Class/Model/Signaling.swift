@@ -76,7 +76,6 @@ struct ControlRoomSettings: Codable {
  ViewPoint Model
 */
 public struct ViewPoint: Codable {
-
     /// Name
     public let name: String?
     /// sortingIndex
@@ -164,8 +163,33 @@ public struct ViewPoint: Codable {
         self.scale = try? values.decodeIfPresent(String.self, forKey: .scale)
     }
 
-    static var emptyViewPoint: ViewPoint {
+    public static var emptyViewPoint: ViewPoint {
         return ViewPoint(enabled: true)
+    }
+    
+    
+}
+
+extension ViewPoint: Hashable {
+    
+    public static func == (lhs: ViewPoint, rhs: ViewPoint) -> Bool {
+        return lhs.name == rhs.name &&
+        lhs.sortingIndex == rhs.sortingIndex &&
+        lhs.controlRoomID == rhs.controlRoomID &&
+        lhs.camID == rhs.camID &&
+        lhs.isEnabled == rhs.isEnabled &&
+        lhs.iconText == rhs.iconText &&
+        lhs.scale == rhs.scale
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+        hasher.combine(sortingIndex)
+        hasher.combine(controlRoomID)
+        hasher.combine(camID)
+        hasher.combine(isEnabled)
+        hasher.combine(iconText)
+        hasher.combine(scale)
     }
 }
 

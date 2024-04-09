@@ -7,7 +7,8 @@
 //
 
 import Foundation
-import UIKit
+import SwiftUI
+
 
 /**
  DataAccess Object to Save/Retrieve the DeviceID

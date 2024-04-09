@@ -34,15 +34,13 @@ struct Vertex
 //  parameterDecimal[10] = ShaderType    - 8 bits - [71:78]
 
 // Extracts the binary value of the stamp parameters
-void getParameterBinary(thread float parameterBinary[PARAMETER_BIT_COUNT], texture2d<float> samplerY)
-{
-constexpr sampler samplr(filter::linear, mag_filter::linear, min_filter::linear);
-  float2 parameterCoord[PARAMETER_BIT_COUNT];
-  float4 parityTexel[PARAMETER_BIT_COUNT];
+void getParameterBinary(thread float parameterBinary[PARAMETER_BIT_COUNT], texture2d<float> samplerY) {
+    constexpr sampler samplr(filter::linear, mag_filter::linear, min_filter::linear);
+    float2 parameterCoord[PARAMETER_BIT_COUNT];
+    float4 parityTexel[PARAMETER_BIT_COUNT];
 
-  float offsetX = 3/samplerY.get_width();
-  float offsetY = 3/samplerY.get_height();
-    
+    float offsetX = 3/samplerY.get_width();
+    float offsetY = 3/samplerY.get_height();
     
     parameterCoord[0] = float2(0.50, offsetY);
     parameterCoord[1] = float2(0.0 + offsetX, 0.50);
@@ -129,19 +127,13 @@ constexpr sampler samplr(filter::linear, mag_filter::linear, min_filter::linear)
     parameterCoord[76] = float2(0.0 + offsetX, 1.0 - 0.96875);
     parameterCoord[77] = float2(0.0 + offsetX, 1.0 - 0.90625);
     parameterCoord[78] = float2(0.0 + offsetX, 1.0 - 0.84375);
-
-
-
-
     
-
-  // Retrieve the luminance for all the samples
-  for (int i = 0; i < PARAMETER_BIT_COUNT; i++)
-  {
-    parityTexel[i] = samplerY.sample(samplr, parameterCoord[i]);
-      //the luma texture goes on red on metal
-    parameterBinary[i] = parityTexel[i].r;
-  }
+    // Retrieve the luminance for all the samples
+    for (int i = 0; i < PARAMETER_BIT_COUNT; i++) {
+        parityTexel[i] = samplerY.sample(samplr, parameterCoord[i]);
+        //the luma texture goes on red on metal
+        parameterBinary[i] = parityTexel[i].r;
+    }
 }
 
 // Provides the transformation matrix for the cube viewPort specified.
@@ -163,12 +155,12 @@ constexpr sampler samplr(filter::linear, mag_filter::linear, min_filter::linear)
 //  15 = back-bottom -z-y yaw180 pitch-45
 //  16 = left-top -x+y yaw270 pitch+45
 //  17 = left-bottom -x-y yaw270 pitch-45
+
 float4x4 getGeometryMatrix(int viewPort) {
     float4x4 geometryMatrix = float4x4(1.0,  0.0, 0.0,  0.0,
                                        0.0,  1.0,  0.0,  0.0,
                                        0.0,  0.0,  1.0,  0.0,
                                        0.0,  0.0,  0.0,  1.0);
-
     // 0.Right -> RotY(270)
     if (viewPort == 0) {
         geometryMatrix =  float4x4(0.0,  0.0, -1.0,  0.0,
@@ -301,9 +293,9 @@ float4x4 getGeometryMatrix(int viewPort) {
 
 float4x4 getOffcenterMatrix(float offcenter) {
     return float4x4(1.0, 0.0, 0.0,  0.0,
-                0.0, 1.0, 0.0,  0.0,
-                0.0, 0.0, 1.0,  offcenter,
-                0.0, 0.0, 0.0,  1.0);
+                    0.0, 1.0, 0.0,  0.0,
+                    0.0, 0.0, 1.0,  offcenter,
+                    0.0, 0.0, 0.0,  1.0);
 }
 
 float signedInt8ToFloat(int intValue) {
@@ -311,65 +303,62 @@ float signedInt8ToFloat(int intValue) {
 }
 
 //values follow the YBVR stamp specification
-float4 GetCheckColor( int geometryId )
-{
-  if (geometryId==1){
-    return float4(1.0, 0.0, 1.0, 1.0);
-  }
-  else if (geometryId==2){
-    return float4(0.0, 0.0, 1.0, 1.0);
-  }
-  else if (geometryId==3){
-    return float4(1.0, 0.0, 0.0, 1.0);
-  }
-  else if (geometryId==4){
-    return float4(0.0, 1.0, 0.0, 1.0);
-  }
-  else if (geometryId==5){
-    return float4(0.0, 0.0, 1.0, 1.0);
-  }
-  else if (geometryId==6){
-    return float4(0.0, 1.0, 1.0, 1.0);
-  }
-  else if (geometryId==7){
-    return float4(1.0, 1.0, 0.0, 1.0);
-  }
-  else if (geometryId==10){
-    return float4(0.0, 0.5, 0.0, 1.0);
-  }
-  else if (geometryId==11){
-    return float4(1.0, 1.0, 1.0, 1.0);
-  }
-  else if (geometryId==12){
-    return float4(0.5, 0.0, 0.0, 1.0);
-  }
-  else if (geometryId>880900000){
-    return float4(1.0, 0.0, 1.0, 1.0);
-  }
-  else{
-    return float4(0.0, 1.0, 1.0, 1.0);
-  }
+float4 GetCheckColor( int geometryId ) {
+    if (geometryId==1){
+        return float4(1.0, 0.0, 1.0, 1.0);
+    }
+    else if (geometryId==2){
+        return float4(0.0, 0.0, 1.0, 1.0);
+    }
+    else if (geometryId==3){
+        return float4(1.0, 0.0, 0.0, 1.0);
+    }
+    else if (geometryId==4){
+        return float4(0.0, 1.0, 0.0, 1.0);
+    }
+    else if (geometryId==5){
+        return float4(0.0, 0.0, 1.0, 1.0);
+    }
+    else if (geometryId==6){
+        return float4(0.0, 1.0, 1.0, 1.0);
+    }
+    else if (geometryId==7){
+        return float4(1.0, 1.0, 0.0, 1.0);
+    }
+    else if (geometryId==10){
+        return float4(0.0, 0.5, 0.0, 1.0);
+    }
+    else if (geometryId==11){
+        return float4(1.0, 1.0, 1.0, 1.0);
+    }
+    else if (geometryId==12){
+        return float4(0.5, 0.0, 0.0, 1.0);
+    }
+    else if (geometryId>880900000){
+        return float4(1.0, 0.0, 1.0, 1.0);
+    }
+    else{
+        return float4(0.0, 1.0, 1.0, 1.0);
+    }
 }
 
-
-float4x4 GetScaleMatrix( float4 currentcolor, int detectedgeo )
-{
-  //check if is the geometry that should show by a color
-  float4 check=GetCheckColor(detectedgeo);
-  if (all(check==currentcolor)){
-    return float4x4(
-                1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1 );
-  }
-  else{
-    return float4x4(
-                0, 0, 0, 0,
-                0, 0, 0, 0,
-                0, 0, 0, 0,
-                0, 0, 0, 1 );
-  }
+float4x4 GetScaleMatrix(float4 currentcolor, int detectedgeo) {
+    //check if is the geometry that should show by a color
+    float4 check=GetCheckColor(detectedgeo);
+    if (all(check==currentcolor)) {
+        return float4x4(
+                        1, 0, 0, 0,
+                        0, 1, 0, 0,
+                        0, 0, 1, 0,
+                        0, 0, 0, 1 );
+    }
+    else{
+        return float4x4(
+                        0, 0, 0, 0,
+                        0, 0, 0, 0,
+                        0, 0, 0, 0,
+                        0, 0, 0, 1 );
+    }
 }
 
 

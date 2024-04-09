@@ -15,6 +15,10 @@ import MetalKit
  Wrapper around AVPlayer to handle to control the video and obtain some extra info like pixel buffers.
  */
 class ApplePlayer: NSObject, VideoPlayerProtocol {
+    
+    @Published private(set) var duration: Double = 10
+    @Published private(set) var newPosition: Double = 0
+    
     private(set) var avPlayer: AVPlayer!
     private(set) var layer: AVPlayerLayer?
     private(set) var avPlayerItem: AVPlayerItem?
@@ -24,7 +28,7 @@ class ApplePlayer: NSObject, VideoPlayerProtocol {
     private let framesPerSecond: Int
     private var durationObservation: NSKeyValueObservation?
     private var timeObservation: Any?
-    private(set) var duration: Double = 0
+    
     private var lastTimestampTracked: Int64 = 0
     private let videoConfig: VideoConfig
     private var lastErrorReported: AVPlayerItemErrorLogEvent? = nil
@@ -150,6 +154,8 @@ class ApplePlayer: NSObject, VideoPlayerProtocol {
      - Parameter videoConfig: Basic configuration for the video player.
      */
     required init(url: URL?, framesPerSecond: Int, videoConfig: VideoConfig) {
+        //print("\(Self.self).\(#function)")
+        
         self.url = url
         avPlayer = AVPlayer(playerItem: avPlayerItem)
         avPlayer.automaticallyWaitsToMinimizeStalling = true
@@ -163,6 +169,10 @@ class ApplePlayer: NSObject, VideoPlayerProtocol {
                 await loadMaxBitrate(url: url)
             }
         }
+    }
+    
+    deinit {
+        //print("\(Self.self).\(#function)")
     }
 
     /**
@@ -208,21 +218,20 @@ class ApplePlayer: NSObject, VideoPlayerProtocol {
     }
 
     /**
-     Setup some observers for the vide player
+     Setup some observers for the video player
      */
     private func setupAvPlayerObservers() {
         timeObservation = avPlayer.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: nil) { [weak self] time in
             guard let self = self else { return }
-            self.delegate?.videoPlayerNewTime(time: time.seconds )
+            self.newPosition = time.seconds
             //self.delegate?.videoPlayerNewTime(time: time.seconds )
         }
-
         avPlayer.addObserver(self, forKeyPath: "timeControlStatus", options: [.old, .new], context: &playerContext)
 
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(playEnd),
-                                               name: .AVPlayerItemDidPlayToEndTime,
-                                               object: nil)
+//        NotificationCenter.default.addObserver(self,
+//                                               selector: #selector(playEnd),
+//                                               name: .AVPlayerItemDidPlayToEndTime,
+//                                               object: nil)
 
         NotificationCenter.default.addObserver(self,
                                                selector: #selector(self.newErrorLogEntry(notification:)),
@@ -266,10 +275,8 @@ class ApplePlayer: NSObject, VideoPlayerProtocol {
      Set up an observer of the player status
      */
     private func setupAvPlayerItemObserver() {
-        durationObservation = avPlayer.currentItem?.observe(\.duration) { [weak self] (item, change) in
+        durationObservation = avPlayer.currentItem?.observe(\.duration, options: [.new, .initial]) { [weak self] (item, change) in
             guard let self = self else { return }
-            self.delegate?.videoPlayerNewDuration(duration: item.duration.seconds)
-            //self.delegate?.videoPlayerNewDuration(duration: item.duration.seconds)
             self.duration = item.duration.seconds
         }
     }
@@ -285,6 +292,7 @@ class ApplePlayer: NSObject, VideoPlayerProtocol {
             avPlayer.removeTimeObserver(observation)
             timeObservation = nil
         }
+    
     }
 
     /**
@@ -303,7 +311,6 @@ class ApplePlayer: NSObject, VideoPlayerProtocol {
      */
     @objc private func playEnd() {
         delegate?.videoDidEnd()
-        //delegate?.videoDidEnd()
     }
 
     /**
@@ -340,17 +347,20 @@ class ApplePlayer: NSObject, VideoPlayerProtocol {
         avPlayer.pause()
         cleanUp()
         NotificationCenter.default.removeObserver(self)
+        avPlayer.replaceCurrentItem(with: nil)
     }
     
     func changeViewport(oldURL: String, newURL: String) {
         
     }
+    
 
     /**
      Native method to observe events
      */
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        guard context == &playerContext else { // give super to handle own cases
+        guard context == &playerContext else {
+            // give super to handle own cases
             super.observeValue(forKeyPath: keyPath,
                                of: object,
                                change: change,
@@ -379,7 +389,6 @@ class ApplePlayer: NSObject, VideoPlayerProtocol {
             break
         }
         delegate?.videoPlayerNewStatus(status: status.videoStatus)
-        //delegate?.videoPlayerNewStatus(status: status.videoStatus)
     }
 }
 
@@ -412,7 +421,7 @@ extension ApplePlayer: AVAssetResourceLoaderDelegate {
         let data = Data(base64Encoded: base64)!
         resourceLoadingRequest.dataRequest?.respond(with: data)
         resourceLoadingRequest.finishLoading()
-        return true;
+        return true
     }
 }
 

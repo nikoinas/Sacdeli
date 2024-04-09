@@ -33,7 +33,7 @@ public protocol YBVRPlayerDelegateProtocol: AnyObject {
     func videoDidEnd()
 
     /**
-     Method called when there is a new subtitle cue (if the current video suppors subtitles)
+     Method called when there is a new subtitle cue (if the current video supports subtitles)
      */
     func videoNewSubtitleCue(cue: String?)
 }

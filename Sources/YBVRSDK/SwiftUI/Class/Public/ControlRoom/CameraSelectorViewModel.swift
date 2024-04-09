@@ -1,27 +1,25 @@
 //
-//  ControlRoomCameraViewModel.swift
+//  CameraSelectorViewModel.swift
 //  YBVRSDK
 //
-//  Created by Niko Inas on 20.01.24.
+//  Created by Niko Inas on 18.03.24.
 //
 
 import SwiftUI
-import CoreGraphics
 
-class ControlRoomCameraViewModel: ObservableObject {
-    
-    @Published var showImage: UIImage?
-    
+public class CameraSelectorViewModel: ObservableObject {
     /**
-     control room cameras are rendered
+     List of views where the control room cameras are rendered
      */
-    var ybvrCamera: YBVRCamera
+    @Published var uiImages: [UIImage] = []
+    
     private let videoPlayer: VideoPlayerProtocol
-    private var context: CIContext
+    private var contexts: [CIContext] = []
+    
     private var displayLink: CADisplayLink?
-    private var image: CIImage?
     private var crType: ControlRoomType
-
+    var controlRoomCameras: [YBVRCamera]
+    
     /**
      Initialize the manager with a videoPlayer and a list of control room cameras
 
@@ -31,19 +29,21 @@ class ControlRoomCameraViewModel: ObservableObject {
 
      If more than 8 cameras are passed, the extra cameras will be ignored.
      */
-    init(videoPlayer: VideoPlayerProtocol, ybvrCamera: YBVRCamera) {
+    init(videoPlayer: VideoPlayerProtocol, controlRoomCameras: [YBVRCamera]) {
         self.videoPlayer = videoPlayer
-        self.ybvrCamera = ybvrCamera
-        crType = ybvrCamera.controlRoomType ?? .v1
-        
-        context = CIContext(mtlDevice: Renderer.device)
-            
+        self.controlRoomCameras = controlRoomCameras
+        crType = controlRoomCameras.first?.controlRoomType ?? .v1
+                
+        controlRoomCameras.forEach { _ in
+            contexts.append(CIContext(mtlDevice: Renderer.device))
+        }
+
         displayLink = CADisplayLink(target: self, selector: #selector(renderLoop))
         displayLink?.preferredFramesPerSecond = 30
         displayLink?.isPaused = videoPlayer.currentVideoStatus != .ready
         displayLink?.add(to: RunLoop.main, forMode: RunLoop.Mode.common)
     }
-
+        
     /**
      Teardown everything
      */
@@ -66,23 +66,22 @@ class ControlRoomCameraViewModel: ObservableObject {
     func pause() {
         displayLink?.isPaused = true
     }
-
+        
     /**
      Method attached to the screen framerate (limited to 30fps)
 
      In each call we retrieve a new image from the `VideoPlayer` and redraw all camera views.
      */
     @objc func renderLoop() {
-        image = videoPlayer.currentPixelImage
-        guard let sourceImage = image else { showImage = UIImage(); return }
-        if crType == .v2 {
-            RatiosCRV2.numberOfRows = ceil(CGFloat(1)/CGFloat(4))
-            RatiosCRV2.innerPadding = sourceImage.extent.width < 1920 ? 8 : 16
+        var images: [UIImage] = []
+        let image: CIImage? = videoPlayer.currentPixelImage
+        for (tag, context) in contexts.enumerated() {
+            guard let sourceImage = image else { return }
+            guard let cgimg = context.createCGImage(sourceImage, from: crType.rect(atIndex: tag, for: sourceImage)) else { return }
+            let img = UIImage(cgImage: cgimg)
+            images.append(img)
         }
-        guard let cgimg = context.createCGImage(sourceImage, from: crType.rect(atIndex: 0, for: sourceImage)) 
-        else { showImage = UIImage(); return } //context.createCGImage(sourceImage, from: sourceImage.extent) else { return }
-
-        showImage = UIImage(cgImage: cgimg)
-        
+        uiImages = images
     }
 }
+

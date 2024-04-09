@@ -13,7 +13,7 @@ import CoreImage
 /**
  Protocol that all Players must conform so all of them are interchangeable
  */
-protocol VideoPlayerProtocol {
+protocol VideoPlayerProtocol: AnyObject {
     var url: URL? { get }
     var duration: Double { get }
     var videoState: VideoViewState { get }

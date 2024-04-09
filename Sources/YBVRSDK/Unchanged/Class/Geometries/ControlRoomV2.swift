@@ -16,7 +16,7 @@ class ControlRoomV2Geometry: Geometry {
 
     var vertexCount: Int = 4
     var indexCount: Int = 6
-    let color: Color = Color(r: 0.5, g: 0.0, b: 0.0, a: 1.0)
+    let color: ColorUK = ColorUK(r: 0.5, g: 0.0, b: 0.0, a: 1.0)
 
     var transform = Transform()
     var texture: MTLTexture? 

@@ -17,7 +17,7 @@ class CM32: Geometry {
 
     var vertexCount: Int = 24
     var indexCount: Int = 36
-    let color: Color = Color(r: 0.0, g: 0.0, b: 1.0, a: 1.0)
+    let color: ColorUK = ColorUK(r: 0.0, g: 0.0, b: 1.0, a: 1.0)
 
 
     var transform = Transform()

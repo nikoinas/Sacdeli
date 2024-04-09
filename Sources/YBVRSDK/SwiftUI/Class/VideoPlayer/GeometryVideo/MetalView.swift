@@ -18,7 +18,6 @@ struct MetalView: UIViewRepresentable {
         
     func makeUIView(context: UIViewRepresentableContext<MetalView>) -> MTKView {
                 
-       // mtkView = MTKView(frame: CGRect(x: 0, y: 0, width: 300, height: 300))
         mtkView.device = MTLCreateSystemDefaultDevice()
         
         mtkView.delegate = context.coordinator
@@ -43,6 +42,7 @@ struct MetalView: UIViewRepresentable {
     }
     
     class Coordinator: NSObject, MTKViewDelegate {
+        
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
             
         }

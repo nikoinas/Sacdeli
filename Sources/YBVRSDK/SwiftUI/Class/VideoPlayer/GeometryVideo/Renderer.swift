@@ -1,12 +1,9 @@
 import Foundation
 import CoreVideo
-import GLKit
 
 import ModelIO
 import Metal
 import MetalKit
-
-//import Dispatch
 
 public enum SignalingVersion: String {
     case v2 = "v2"
@@ -43,7 +40,7 @@ class Renderer: NSObject {
     private var computePipeLineState: MTLComputePipelineState!
     private var uniforms = Uniforms()
     private var timer: Float = 0
-    var videoPlayer: VideoPlayerProtocol?
+    weak var videoPlayer: VideoPlayerProtocol?
     
     var videoStarted: Bool
     
@@ -62,45 +59,35 @@ class Renderer: NSObject {
     private var isPassthrough: Bool
     private var numberOfRowsForCRv2: Int = 0
     
-    init(videoConfig: VideoConfig,
-        signalingVersion: SignalingVersion,
-        isPassthrough: Bool,
-        geometryIDs: [String],
-        numberOfRowsForCRv2: Int) {
-            guard let device = MTLCreateSystemDefaultDevice(),
-                  let commandQueue = device.makeCommandQueue() else {
-                fatalError("Unable to connect to GPU")
-            }
-            
-            Renderer.device = device
-        print("ვნახოთ 0", device)
-            self.commandQueue = commandQueue
-        print("ვნახოთ 0", commandQueue)
-            
-            let bundle = Bundle(identifier: "com.ybvr.YBVRSDK") ?? Bundle.main
-        print("ვნახოთ 1", bundle === Bundle(identifier: "com.ybvr.YBVRSDK"))
-        print("ვნახოთ 2", bundle === Bundle.main)
-
-            
-            try? Renderer.library = device.makeDefaultLibrary(bundle: bundle)
-            
-            
-            self.videoConfig = videoConfig
-            self.signalingVersion = signalingVersion
-            self.geometryIds = geometryIDs
-            self.isPassthrough = isPassthrough
-            self.numberOfRowsForCRv2 = numberOfRowsForCRv2
-            pipelineState = Renderer.createPipelineState()
-            samplerState = Renderer.buildSamplerState(device: device)
-            
-            self.videoStarted = false
-            
-            super.init()
-            initializeModel()
+    init(videoConfig: VideoConfig, signalingVersion: SignalingVersion, isPassthrough: Bool,     geometryIDs: [String], numberOfRowsForCRv2: Int) {
+        //print("\(Self.self).\(#function)")
+        
+        guard let device = MTLCreateSystemDefaultDevice(), let commandQueue = device.makeCommandQueue() else {
+            fatalError("Unable to connect to GPU")
         }
+        Renderer.device = device
+        self.commandQueue = commandQueue
+            
+        let bundle = Bundle(identifier: "com.ybvr.YBVRSDK") ?? Bundle.main
+            
+        try? Renderer.library = device.makeDefaultLibrary(bundle: bundle)
+            
+        self.videoConfig = videoConfig
+        self.signalingVersion = signalingVersion
+        self.geometryIds = geometryIDs
+        self.isPassthrough = isPassthrough
+        self.numberOfRowsForCRv2 = numberOfRowsForCRv2
+        pipelineState = Renderer.createPipelineState()
+        samplerState = Renderer.buildSamplerState(device: device)
+            
+        self.videoStarted = false
+            
+        super.init()
+        initializeModel()
+    }
     
     deinit {
-        
+        //print("\(Self.self).\(#function)")
     }
     
     /**
@@ -123,13 +110,13 @@ class Renderer: NSObject {
     
     private func updateTexture(_ pixelBuffer: CVPixelBuffer) {
         if textureCache == nil {
-            let result = CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, Renderer.device!, nil, &textureCache)
+            _ = CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, Renderer.device!, nil, &textureCache)
         }
         
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
         
-        let format:MTLPixelFormat = .rgba8Unorm
+        let _:MTLPixelFormat = .rgba8Unorm
         
         var lumatextureRef : CVMetalTexture?
         var chromatextureRef : CVMetalTexture?
@@ -202,7 +189,6 @@ class Renderer: NSObject {
     }
     
     static func createPipelineState() -> MTLRenderPipelineState {
-        
         let vertexFunction = Renderer.library.makeFunction(name: "vertex_main")
         let fragmentFunction = Renderer.library.makeFunction(name: "fragment_main")
         
@@ -243,6 +229,7 @@ extension Renderer: MTKViewDelegate {
         }
         self.videoStarted = true
     }
+    
     
     func draw(in view: MTKView) {
         if (!geometryIds.contains("1") && !geometryIds.contains("2") && !geometryIds.contains("6") && !geometryIds.contains("10")) {
@@ -313,4 +300,3 @@ extension Renderer: MTKViewDelegate {
         commandBuffer.waitUntilCompleted()
     }    
 }
-

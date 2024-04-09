@@ -31,7 +31,7 @@ struct VertexData {
 protocol Geometry: AnyObject {
     var vertexCount: Int { get }
     var indexCount: Int { get }
-    var color: Color { get }
+    var color: ColorUK { get }
 
     var transform: Transform { get set }
     var texture: MTLTexture? { get set }
@@ -58,7 +58,4 @@ extension Geometry {
         let indexBytes: [UInt32] = generateIndices()
         indices = indexBytes
     }
-
-
-
 }

@@ -48,4 +48,9 @@ extension UIApplication {
         return String(bytes: Data(bytes: &sysinfo.machine, count: Int(_SYS_NAMELEN)), encoding: .ascii)!
             .trimmingCharacters(in: .controlCharacters)
     }
+    
+    static var orientation:  UIInterfaceOrientation? {
+        let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene
+        return windowScene?.interfaceOrientation
+    }
 }

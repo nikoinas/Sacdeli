@@ -63,24 +63,24 @@ class Tracker {
      - Parameter change: Object describing the change
      - Parameter videoUrl: URL of the video being currently played
      */
-    func trackViewPortChange(change: ViewPortChange, videoUrl: String) {
+    func trackViewPortChange(change: ViewPortChange, videoUrl: String) async {
         guard let start = playbackStartEpoch else { return }
         let event = TrackerViewPortEvent(appName: appName,
                                          playbackStartEpoch: start,
                                          viewportChange: change,
                                          videoUrl: videoUrl,
                                          ipInfo: IPInfo(clientIP: config.ipAddress, clientCountry: config.country))
-        append(event: event)
+        await append(event: event)
     }
 
-    @objc private func track() {
+    @objc private func track() async {
         guard let state = getCurrentState?(), let start = playbackStartEpoch else { return }
         let event = TrackerPeriodicEvent(appName: appName,
                                          playbackStartEpoch: start,
                                          targetReportingFrequency: config.reportingPace,
                                          viewState: state,
                                          ipInfo: IPInfo(clientIP: config.ipAddress, clientCountry: config.country))
-        append(event: event)
+        await append(event: event)
     }
 
     /**
@@ -90,12 +90,12 @@ class Tracker {
 
      - Parameter event: Event that will be added to the batch
      */
-    private func append(event: TrackerEvent) {
+    private func append(event: TrackerEvent) async {
         eventGroup.append(event)
         if eventGroup.count >= config.analyticsBufferSize {
             let events = eventGroup
             eventGroup = []
-            sendReport(events: events)
+            await sendReport(events: events)
         }
     }
 
@@ -104,21 +104,18 @@ class Tracker {
 
      - Parameter events: Array of parameters to be sent.
      */
-    private func sendReport(events: [TrackerEvent]) {
+    private func sendReport(events: [TrackerEvent]) async {
         guard let data = encode(events: events), let url = config.analyticsURL else {
             print("Error encoding data for tracking")
             return
         }
-
-        sendTracking(url: url, data: data) { result in
-            switch result {
-            case .success(let value):
-                if value.errors {
-                    print("Tracking request sent with some errors")
-                }
-            case .failure(let error):
-                print("Error sending trackings: \(error)")
+        do {
+            let value = try await sendTracking(url: url, data: data)
+            if value.errors {
+                print("Tracking request sent with some errors")
             }
+        } catch {
+            print("Error sending trackings: \(error)")
         }
     }
 
@@ -144,7 +141,7 @@ class Tracker {
      - Parameter data: Encoded data with NDJSON events
      - Parameter completion: Completion closure with the result of the request
      */
-    private func sendTracking(url: URL, data: Data, completion: @escaping ((Result<TrackingResult, Error>) -> Void)) {
-        ApiClient.shared.postNDJson(url: url, data: data, completion: completion)
+    private func sendTracking(url: URL, data: Data) async throws -> TrackingResult {
+        return try await NetworkingManager().postNDJson(url: url, data: data)
     }
 }

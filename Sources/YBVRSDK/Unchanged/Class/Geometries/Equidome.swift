@@ -17,7 +17,7 @@ class Equidome: Geometry {
 
     var vertexCount: Int = 0
     var indexCount: Int = 0
-    let color: Color = Color(r: 0.0, g: 1.0, b: 1.0, a: 1.0)
+    let color: ColorUK = ColorUK(r: 0.0, g: 1.0, b: 1.0, a: 1.0)
 
     var transform = Transform()
     var texture: MTLTexture? 
